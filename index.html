@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MemoSpace</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://js.stripe.com/v3/"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -21,6 +22,7 @@
       --muted:    #8888a0;
       --danger:   #e06464;
       --success:  #5dd89c;
+      --gold:     #f59e0b;
       --radius:   14px;
     }
 
@@ -54,16 +56,8 @@
       box-shadow: 0 40px 80px rgba(0,0,0,.5);
     }
 
-    .brand {
-      text-align: center;
-      margin-bottom: 36px;
-    }
-    .brand-icon {
-      font-size: 40px;
-      line-height: 1;
-      margin-bottom: 14px;
-      display: block;
-    }
+    .brand { text-align: center; margin-bottom: 36px; }
+    .brand-icon { font-size: 40px; line-height: 1; margin-bottom: 14px; display: block; }
     .brand h1 {
       font-size: 26px;
       font-weight: 600;
@@ -72,11 +66,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-    .brand p {
-      color: var(--muted);
-      font-size: 13px;
-      margin-top: 4px;
-    }
+    .brand p { color: var(--muted); font-size: 13px; margin-top: 4px; }
 
     .tabs {
       display: flex;
@@ -99,10 +89,7 @@
       transition: all .2s;
       font-family: inherit;
     }
-    .tab-btn.active {
-      background: var(--accent);
-      color: #fff;
-    }
+    .tab-btn.active { background: var(--accent); color: #fff; }
 
     .form-group { margin-bottom: 18px; }
     .form-group label {
@@ -161,24 +148,27 @@
       text-align: center;
     }
     .flash.error   { background: rgba(224,100,100,.14); color: var(--danger);  border: 1px solid rgba(224,100,100,.25); }
-    .flash.success { background: rgba(93,216,156,.14);  color: var(--success); border: 1px solid rgba(93,216,156,.25);  }
+    .flash.success { background: rgba(93,216,156,.14);  color: var(--success); border: 1px solid rgba(93,216,156,.25); }
 
     /* ─── APP SCREEN ──────────────────────────── */
     #app-screen { display: none; min-height: 100vh; }
 
     .topbar {
-      background: rgba(23,23,31,.85);
+      background: rgba(23,23,31,.88);
       backdrop-filter: blur(18px);
       border-bottom: 1px solid var(--border);
-      padding: 14px 28px;
+      padding: 12px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       position: sticky;
       top: 0;
       z-index: 20;
+      gap: 12px;
     }
-    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .topbar-left  { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
     .topbar-logo {
       font-size: 18px;
       font-weight: 600;
@@ -187,6 +177,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
       letter-spacing: -.3px;
+      white-space: nowrap;
     }
     .user-chip {
       background: var(--surface2);
@@ -195,16 +186,48 @@
       padding: 3px 12px;
       font-size: 12px;
       color: var(--muted);
-      max-width: 220px;
+      max-width: 180px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
+    /* Upgrade button */
+    .btn-upgrade {
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      border: none;
+      border-radius: 8px;
+      padding: 7px 14px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .btn-upgrade:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(245,158,11,.45);
+    }
+    .btn-upgrade:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+    /* Pro badge */
+    .pro-badge {
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: .3px;
+    }
+
     .btn-logout {
       background: transparent;
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 6px 16px;
+      padding: 6px 14px;
       color: var(--muted);
       font-size: 13px;
       cursor: pointer;
@@ -219,13 +242,13 @@
       padding: 40px 20px 80px;
     }
 
-    /* New memo box */
+    /* Composer */
     .composer {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 18px 20px 14px;
-      margin-bottom: 32px;
+      margin-bottom: 20px;
       transition: border-color .2s;
     }
     .composer:focus-within { border-color: rgba(124,111,224,.35); }
@@ -251,7 +274,6 @@
       border-top: 1px solid var(--border);
     }
     .char-count { font-size: 12px; color: var(--muted); }
-    .hint { font-size: 11px; color: var(--muted); opacity: .7; }
     .btn-save {
       background: var(--accent);
       border: none;
@@ -264,11 +286,25 @@
       transition: all .2s;
       font-family: inherit;
     }
-    .btn-save:hover:not(:disabled) {
-      background: var(--accent2);
-      transform: translateY(-1px);
-    }
+    .btn-save:hover:not(:disabled) { background: var(--accent2); transform: translateY(-1px); }
     .btn-save:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+    /* Limit banner */
+    .limit-banner {
+      display: none;
+      background: rgba(245,158,11,.08);
+      border: 1px solid rgba(245,158,11,.28);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .limit-banner-text { font-size: 14px; color: #fbbf24; }
+    .limit-banner-text strong { display: block; font-size: 15px; margin-bottom: 3px; color: #fde68a; }
+    .limit-banner-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
     /* Section label */
     .section-label {
@@ -282,14 +318,8 @@
       align-items: center;
       gap: 10px;
     }
-    .section-label::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    /* Memo count badge */
     .count-badge {
       background: var(--surface2);
       border-radius: 20px;
@@ -301,7 +331,6 @@
 
     /* Memo cards */
     .memos-list { display: flex; flex-direction: column; gap: 10px; }
-
     .memo-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -314,19 +343,8 @@
       border-color: rgba(124,111,224,.22);
       box-shadow: 0 4px 24px rgba(0,0,0,.22);
     }
-    .memo-content {
-      color: var(--text);
-      font-size: 15px;
-      line-height: 1.75;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .memo-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 12px;
-    }
+    .memo-content { color: var(--text); font-size: 15px; line-height: 1.75; white-space: pre-wrap; word-break: break-word; }
+    .memo-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
     .memo-date { font-size: 11px; color: var(--muted); }
     .btn-del {
       background: none;
@@ -344,11 +362,7 @@
     .btn-del:hover { background: rgba(224,100,100,.14); color: var(--danger); }
 
     /* Empty state */
-    .empty {
-      text-align: center;
-      padding: 64px 24px;
-      color: var(--muted);
-    }
+    .empty { text-align: center; padding: 64px 24px; color: var(--muted); }
     .empty .e-icon { font-size: 44px; margin-bottom: 18px; display: block; opacity: .6; }
     .empty h3 { font-size: 17px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
     .empty p { font-size: 14px; }
@@ -363,9 +377,30 @@
       animation: spin .75s linear infinite;
     }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      display: none;
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      animation: toastIn .3s ease;
+    }
+    .toast.success { background: #064e3b; color: #6ee7b7; border: 1px solid rgba(110,231,183,.3); }
+    .toast.error   { background: #450a0a; color: #fca5a5; border: 1px solid rgba(252,165,165,.3); }
+    .toast.info    { background: #1e1b4b; color: #a5b4fc; border: 1px solid rgba(165,180,252,.3); }
+
+    @keyframes spin    { to { transform: rotate(360deg); } }
     @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes slideOut { to { opacity: 0; transform: translateY(-8px); } }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
   </style>
 </head>
 <body>
@@ -407,7 +442,13 @@
       <span class="topbar-logo">✦ MemoSpace</span>
       <span class="user-chip" id="user-chip"></span>
     </div>
-    <button class="btn-logout" onclick="handleLogout()">ログアウト</button>
+    <div class="topbar-right">
+      <button class="btn-upgrade" id="upgrade-btn" onclick="upgradeToPro()" style="display:none">
+        Proにアップグレード ¥500/月
+      </button>
+      <span class="pro-badge" id="pro-badge" style="display:none">✦ Pro</span>
+      <button class="btn-logout" onclick="handleLogout()">ログアウト</button>
+    </div>
   </header>
 
   <main class="main">
@@ -425,6 +466,16 @@
       </div>
     </div>
 
+    <!-- Limit banner (無料プラン上限) -->
+    <div class="limit-banner" id="limit-banner">
+      <div class="limit-banner-text">
+        <strong>無料プランの上限に達しました</strong>
+        メモは3件まで保存できます。Proプランで無制限に保存しましょう。
+        <div class="limit-banner-sub">既存のメモを削除するか、Proにアップグレードしてください。</div>
+      </div>
+      <button class="btn-upgrade" onclick="upgradeToPro()">Proにアップグレード ¥500/月</button>
+    </div>
+
     <!-- Memo list -->
     <div class="section-label">
       メモ一覧
@@ -437,13 +488,91 @@
   </main>
 </div>
 
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
 <script>
-  /* ── Config ── */
+  /* ── Supabase ── */
   const SUPABASE_URL = 'https://srlgbvyaiwsrofocrmmf.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_txqtgIa9CWaOosnEgEJ86w_zEOEUsHl'; // ← Supabase の Anon Key をここに貼る
+  const SUPABASE_KEY = 'sb_publishable_txqtgIa9CWaOosnEgEJ86w_zEOEUsHl';
 
   const { createClient } = supabase;
   const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* ── Stripe ── */
+  const STRIPE_KEY  = 'pk_test_51TdVnDLHaJqdbM6k9qusCCF2ZOHTaPmxYw5McZRTDgM6LeEapi4NZbnS8jDFztf9cYhIY2YxjQaKVusYiBbbYCYR00h2Sbf3HI';
+  const PRICE_ID    = 'price_1TdVqELHaJqdbM6kErxlZz2a';
+  const SUCCESS_URL = 'https://auth-app-vert-ten.vercel.app/?success=true';
+  const CANCEL_URL  = 'https://auth-app-vert-ten.vercel.app/?canceled=true';
+  const FREE_LIMIT  = 3;
+
+  const stripeClient = Stripe(STRIPE_KEY);
+
+  /* ── Pro status (localStorage) ── */
+  function isPro()  { return localStorage.getItem('memospace_pro') === 'true'; }
+  function setPro() { localStorage.setItem('memospace_pro', 'true'); }
+
+  function updateProUI() {
+    const upgradeBtn = document.getElementById('upgrade-btn');
+    const proBadge   = document.getElementById('pro-badge');
+    if (isPro()) {
+      upgradeBtn.style.display = 'none';
+      proBadge.style.display   = '';
+    } else {
+      upgradeBtn.style.display = '';
+      proBadge.style.display   = 'none';
+    }
+  }
+
+  function updateLimitBanner(count) {
+    const banner = document.getElementById('limit-banner');
+    banner.style.display = (!isPro() && count >= FREE_LIMIT) ? 'flex' : 'none';
+  }
+
+  /* ── Stripe checkout ── */
+  async function upgradeToPro() {
+    const btns = document.querySelectorAll('.btn-upgrade');
+    btns.forEach(b => { b.disabled = true; b.textContent = '処理中...'; });
+
+    const { error } = await stripeClient.redirectToCheckout({
+      lineItems: [{ price: PRICE_ID, quantity: 1 }],
+      mode: 'subscription',
+      successUrl: SUCCESS_URL,
+      cancelUrl:  CANCEL_URL,
+    });
+
+    if (error) {
+      showToast('error', 'エラーが発生しました: ' + error.message);
+      btns.forEach(b => { b.disabled = false; b.textContent = 'Proにアップグレード ¥500/月'; });
+    }
+  }
+
+  /* ── Stripe redirect handler ── */
+  function handleStripeRedirect() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+      setPro();
+      updateProUI();
+      updateLimitBanner(0);
+      showToast('success', '🎉 Proプランへのアップグレードが完了しました！');
+      history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('canceled') === 'true') {
+      showToast('info', '決済をキャンセルしました');
+      history.replaceState({}, '', window.location.pathname);
+    }
+  }
+
+  /* ── Toast ── */
+  function showToast(type, msg) {
+    const el = document.getElementById('toast');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.style.animation = 'none';
+    requestAnimationFrame(() => { el.style.animation = ''; });
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.style.display = 'none'; }, 5000);
+  }
 
   /* ── Tab switch ── */
   let currentTab = 'login';
@@ -451,7 +580,7 @@
   function switchTab(tab) {
     currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach((b, i) =>
-      b.classList.toggle('active', (tab === 'login' ? i === 0 : i === 1))
+      b.classList.toggle('active', tab === 'login' ? i === 0 : i === 1)
     );
     document.getElementById('auth-btn').textContent =
       tab === 'login' ? 'ログイン' : 'アカウントを作成';
@@ -479,7 +608,6 @@
       }
       if (res.error) throw res.error;
 
-      /* signUp without auto-confirm → show email notice */
       if (currentTab === 'register' && res.data?.user && !res.data.session) {
         msgEl.innerHTML = flash('success', '確認メールを送信しました。メールをご確認ください。');
         btn.disabled = false;
@@ -506,6 +634,8 @@
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-screen').style.display  = 'block';
     document.getElementById('user-chip').textContent      = user.email;
+    handleStripeRedirect();
+    updateProUI();
     loadMemos();
   }
 
@@ -530,6 +660,7 @@
     }
 
     updateBadge(data.length);
+    updateLimitBanner(data.length);
 
     if (!data.length) {
       wrap.innerHTML = `
@@ -572,6 +703,16 @@
     const content = input.value.trim();
     if (!content) return;
 
+    /* 無料プランの上限チェック */
+    if (!isPro()) {
+      const list  = document.querySelector('.memos-list');
+      const count = list ? list.children.length : 0;
+      if (count >= FREE_LIMIT) {
+        updateLimitBanner(count);
+        return;
+      }
+    }
+
     const saveBtn = document.getElementById('save-btn');
     saveBtn.disabled = true;
     saveBtn.textContent = '保存中...';
@@ -592,7 +733,6 @@
 
       let list = document.querySelector('.memos-list');
       if (!list) {
-        /* Was showing empty state — re-render */
         const wrap = document.getElementById('memos-wrap');
         wrap.innerHTML = '';
         list = document.createElement('div');
@@ -600,7 +740,9 @@
         wrap.appendChild(list);
       }
       list.insertBefore(memoCard(data), list.firstChild);
-      updateBadge(list.children.length);
+      const newCount = list.children.length;
+      updateBadge(newCount);
+      updateLimitBanner(newCount);
     }
 
     saveBtn.disabled = false;
@@ -618,9 +760,10 @@
       card.style.animation = 'slideOut .2s ease forwards';
       setTimeout(() => {
         card.remove();
-        const list = document.querySelector('.memos-list');
+        const list      = document.querySelector('.memos-list');
         const remaining = list ? list.children.length : 0;
         updateBadge(remaining);
+        updateLimitBanner(remaining);
         if (remaining === 0) loadMemos();
       }, 210);
     }
@@ -645,15 +788,13 @@
       .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   }
 
-  function flash(type, msg) {
-    return `<div class="flash ${type}">${msg}</div>`;
-  }
+  function flash(type, msg) { return `<div class="flash ${type}">${msg}</div>`; }
 
   function jp(msg) {
     const map = {
-      'Invalid login credentials':           'メールアドレスまたはパスワードが正しくありません',
-      'Email not confirmed':                  'メールアドレスの確認が完了していません',
-      'User already registered':             'このメールアドレスはすでに登録されています',
+      'Invalid login credentials':                'メールアドレスまたはパスワードが正しくありません',
+      'Email not confirmed':                       'メールアドレスの確認が完了していません',
+      'User already registered':                  'このメールアドレスはすでに登録されています',
       'Password should be at least 6 characters': 'パスワードは6文字以上で入力してください',
     };
     return map[msg] ?? msg;
