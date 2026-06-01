@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MemoSpace</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #0d0d12;
+      --surface:  #17171f;
+      --surface2: #21212c;
+      --border:   rgba(255,255,255,0.07);
+      --accent:   #7c6fe0;
+      --accent2:  #a78bfa;
+      --text:     #e4e4ee;
+      --muted:    #8888a0;
+      --danger:   #e06464;
+      --success:  #5dd89c;
+      --radius:   14px;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ─── AUTH SCREEN ─────────────────────────── */
+    #auth-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(ellipse at 15% 60%, rgba(124,111,224,.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 10%, rgba(167,139,250,.12) 0%, transparent 55%),
+        var(--bg);
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 48px 44px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 40px 80px rgba(0,0,0,.5);
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .brand-icon {
+      font-size: 40px;
+      line-height: 1;
+      margin-bottom: 14px;
+      display: block;
+    }
+    .brand h1 {
+      font-size: 26px;
+      font-weight: 600;
+      background: linear-gradient(135deg, var(--accent2), #c4b5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .brand p {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .tabs {
+      display: flex;
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 28px;
+      gap: 4px;
+    }
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      padding: 9px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      transition: all .2s;
+      font-family: inherit;
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .form-group input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 15px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .form-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124,111,224,.18);
+    }
+    .form-group input::placeholder { color: var(--muted); }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--accent), #9b8bf4);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+      margin-top: 4px;
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(124,111,224,.4);
+    }
+    .btn-primary:active { transform: none; }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
+    .flash {
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-top: 14px;
+      text-align: center;
+    }
+    .flash.error   { background: rgba(224,100,100,.14); color: var(--danger);  border: 1px solid rgba(224,100,100,.25); }
+    .flash.success { background: rgba(93,216,156,.14);  color: var(--success); border: 1px solid rgba(93,216,156,.25);  }
+
+    /* ─── APP SCREEN ──────────────────────────── */
+    #app-screen { display: none; min-height: 100vh; }
+
+    .topbar {
+      background: rgba(23,23,31,.85);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .topbar-logo {
+      font-size: 18px;
+      font-weight: 600;
+      background: linear-gradient(135deg, var(--accent2), #c4b5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -.3px;
+    }
+    .user-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 16px;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+    }
+    .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+    .main {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    /* New memo box */
+    .composer {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px 14px;
+      margin-bottom: 32px;
+      transition: border-color .2s;
+    }
+    .composer:focus-within { border-color: rgba(124,111,224,.35); }
+    #memo-input {
+      width: 100%;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      min-height: 88px;
+      line-height: 1.7;
+    }
+    #memo-input::placeholder { color: var(--muted); }
+    .composer-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .char-count { font-size: 12px; color: var(--muted); }
+    .hint { font-size: 11px; color: var(--muted); opacity: .7; }
+    .btn-save {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      padding: 7px 20px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+    }
+    .btn-save:hover:not(:disabled) {
+      background: var(--accent2);
+      transform: translateY(-1px);
+    }
+    .btn-save:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+    /* Section label */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .9px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Memo count badge */
+    .count-badge {
+      background: var(--surface2);
+      border-radius: 20px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    /* Memo cards */
+    .memos-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .memo-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 22px 14px;
+      animation: slideUp .25s ease both;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .memo-card:hover {
+      border-color: rgba(124,111,224,.22);
+      box-shadow: 0 4px 24px rgba(0,0,0,.22);
+    }
+    .memo-content {
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .memo-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+    }
+    .memo-date { font-size: 11px; color: var(--muted); }
+    .btn-del {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      transition: all .2s;
+      opacity: 0;
+      font-family: inherit;
+    }
+    .memo-card:hover .btn-del { opacity: 1; }
+    .btn-del:hover { background: rgba(224,100,100,.14); color: var(--danger); }
+
+    /* Empty state */
+    .empty {
+      text-align: center;
+      padding: 64px 24px;
+      color: var(--muted);
+    }
+    .empty .e-icon { font-size: 44px; margin-bottom: 18px; display: block; opacity: .6; }
+    .empty h3 { font-size: 17px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+    .empty p { font-size: 14px; }
+
+    /* Loading */
+    .loading { display: flex; justify-content: center; padding: 48px; }
+    .spinner {
+      width: 30px; height: 30px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideOut { to { opacity: 0; transform: translateY(-8px); } }
+  </style>
+</head>
+<body>
+
+<!-- ── AUTH ── -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="brand">
+      <span class="brand-icon">✦</span>
+      <h1>MemoSpace</h1>
+      <p>あなたの思考を、安全に残す</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('login')">ログイン</button>
+      <button class="tab-btn"        onclick="switchTab('register')">新規登録</button>
+    </div>
+
+    <form id="auth-form" onsubmit="handleAuth(event)">
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>パスワード</label>
+        <input type="password" id="password" placeholder="••••••••" required minlength="6" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-primary" id="auth-btn">ログイン</button>
+    </form>
+
+    <div id="auth-msg"></div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app-screen">
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">✦ MemoSpace</span>
+      <span class="user-chip" id="user-chip"></span>
+    </div>
+    <button class="btn-logout" onclick="handleLogout()">ログアウト</button>
+  </header>
+
+  <main class="main">
+    <!-- Composer -->
+    <div class="composer">
+      <textarea
+        id="memo-input"
+        placeholder="新しいメモを書く...（Ctrl+Enter で保存）"
+        maxlength="2000"
+        oninput="onInput()"
+      ></textarea>
+      <div class="composer-footer">
+        <span class="char-count"><span id="char-count">0</span> / 2000</span>
+        <button class="btn-save" id="save-btn" onclick="saveMemo()" disabled>保存</button>
+      </div>
+    </div>
+
+    <!-- Memo list -->
+    <div class="section-label">
+      メモ一覧
+      <span class="count-badge" id="count-badge" style="display:none"></span>
+    </div>
+
+    <div id="memos-wrap">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  /* ── Config ── */
+  const SUPABASE_URL = 'https://srlgbvyaiwsrofocrmmf.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_txqtgIa9CWaOosnEgEJ86w_zEOEUsHl'; // ← Supabase の Anon Key をここに貼る
+
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* ── Tab switch ── */
+  let currentTab = 'login';
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach((b, i) =>
+      b.classList.toggle('active', (tab === 'login' ? i === 0 : i === 1))
+    );
+    document.getElementById('auth-btn').textContent =
+      tab === 'login' ? 'ログイン' : 'アカウントを作成';
+    document.getElementById('auth-msg').innerHTML = '';
+  }
+
+  /* ── Auth submit ── */
+  async function handleAuth(e) {
+    e.preventDefault();
+    const email    = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const btn      = document.getElementById('auth-btn');
+    const msgEl    = document.getElementById('auth-msg');
+
+    btn.disabled = true;
+    btn.textContent = '処理中...';
+    msgEl.innerHTML = '';
+
+    try {
+      let res;
+      if (currentTab === 'login') {
+        res = await db.auth.signInWithPassword({ email, password });
+      } else {
+        res = await db.auth.signUp({ email, password });
+      }
+      if (res.error) throw res.error;
+
+      /* signUp without auto-confirm → show email notice */
+      if (currentTab === 'register' && res.data?.user && !res.data.session) {
+        msgEl.innerHTML = flash('success', '確認メールを送信しました。メールをご確認ください。');
+        btn.disabled = false;
+        btn.textContent = 'アカウントを作成';
+      }
+    } catch (err) {
+      msgEl.innerHTML = flash('error', jp(err.message));
+      btn.disabled = false;
+      btn.textContent = currentTab === 'login' ? 'ログイン' : 'アカウントを作成';
+    }
+  }
+
+  async function handleLogout() {
+    await db.auth.signOut();
+  }
+
+  /* ── Auth state ── */
+  db.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) showApp(session.user);
+    else               showAuth();
+  });
+
+  function showApp(user) {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display  = 'block';
+    document.getElementById('user-chip').textContent      = user.email;
+    loadMemos();
+  }
+
+  function showAuth() {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display  = 'none';
+  }
+
+  /* ── Memos ── */
+  async function loadMemos() {
+    const wrap = document.getElementById('memos-wrap');
+    wrap.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+    const { data, error } = await db
+      .from('memos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      wrap.innerHTML = flash('error', 'メモの読み込みに失敗しました: ' + error.message);
+      return;
+    }
+
+    updateBadge(data.length);
+
+    if (!data.length) {
+      wrap.innerHTML = `
+        <div class="empty">
+          <span class="e-icon">✦</span>
+          <h3>まだメモがありません</h3>
+          <p>上のテキストエリアから最初のメモを書きましょう</p>
+        </div>`;
+      return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'memos-list';
+    data.forEach(m => list.appendChild(memoCard(m)));
+    wrap.innerHTML = '';
+    wrap.appendChild(list);
+  }
+
+  function memoCard(memo) {
+    const el = document.createElement('div');
+    el.className = 'memo-card';
+    el.id = 'mc-' + memo.id;
+
+    const date = new Date(memo.created_at).toLocaleString('ja-JP', {
+      year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+
+    el.innerHTML = `
+      <div class="memo-content">${esc(memo.content)}</div>
+      <div class="memo-meta">
+        <span class="memo-date">${date}</span>
+        <button class="btn-del" onclick="deleteMemo('${memo.id}')">削除</button>
+      </div>`;
+    return el;
+  }
+
+  async function saveMemo() {
+    const input   = document.getElementById('memo-input');
+    const content = input.value.trim();
+    if (!content) return;
+
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中...';
+
+    const { data: { user } } = await db.auth.getUser();
+
+    const { data, error } = await db
+      .from('memos')
+      .insert({ content, user_id: user.id })
+      .select()
+      .single();
+
+    if (error) {
+      alert('保存に失敗しました: ' + error.message);
+    } else {
+      input.value = '';
+      onInput();
+
+      let list = document.querySelector('.memos-list');
+      if (!list) {
+        /* Was showing empty state — re-render */
+        const wrap = document.getElementById('memos-wrap');
+        wrap.innerHTML = '';
+        list = document.createElement('div');
+        list.className = 'memos-list';
+        wrap.appendChild(list);
+      }
+      list.insertBefore(memoCard(data), list.firstChild);
+      updateBadge(list.children.length);
+    }
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = '保存';
+  }
+
+  async function deleteMemo(id) {
+    if (!confirm('このメモを削除しますか？')) return;
+
+    const { error } = await db.from('memos').delete().eq('id', id);
+    if (error) { alert('削除に失敗しました: ' + error.message); return; }
+
+    const card = document.getElementById('mc-' + id);
+    if (card) {
+      card.style.animation = 'slideOut .2s ease forwards';
+      setTimeout(() => {
+        card.remove();
+        const list = document.querySelector('.memos-list');
+        const remaining = list ? list.children.length : 0;
+        updateBadge(remaining);
+        if (remaining === 0) loadMemos();
+      }, 210);
+    }
+  }
+
+  /* ── Helpers ── */
+  function onInput() {
+    const val = document.getElementById('memo-input').value;
+    document.getElementById('char-count').textContent = val.length;
+    document.getElementById('save-btn').disabled = val.trim().length === 0;
+  }
+
+  function updateBadge(n) {
+    const el = document.getElementById('count-badge');
+    el.textContent = n + ' 件';
+    el.style.display = n > 0 ? '' : 'none';
+  }
+
+  function esc(s) {
+    return s
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+
+  function flash(type, msg) {
+    return `<div class="flash ${type}">${msg}</div>`;
+  }
+
+  function jp(msg) {
+    const map = {
+      'Invalid login credentials':           'メールアドレスまたはパスワードが正しくありません',
+      'Email not confirmed':                  'メールアドレスの確認が完了していません',
+      'User already registered':             'このメールアドレスはすでに登録されています',
+      'Password should be at least 6 characters': 'パスワードは6文字以上で入力してください',
+    };
+    return map[msg] ?? msg;
+  }
+
+  /* Ctrl+Enter to save */
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      if (document.activeElement === document.getElementById('memo-input')) saveMemo();
+    }
+  });
+</script>
+</body>
+</html>
