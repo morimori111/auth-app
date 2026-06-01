@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MemoSpace</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://js.stripe.com/v3/"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -500,13 +499,8 @@
   const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
   /* ── Stripe ── */
-  const STRIPE_KEY  = 'pk_test_51TdVnDLHaJqdbM6k9qusCCF2ZOHTaPmxYw5McZRTDgM6LeEapi4NZbnS8jDFztf9cYhIY2YxjQaKVusYiBbbYCYR00h2Sbf3HI';
-  const PRICE_ID    = 'price_1TdVqELHaJqdbM6kErxlZz2a';
-  const SUCCESS_URL = 'https://auth-app-vert-ten.vercel.app/?success=true';
-  const CANCEL_URL  = 'https://auth-app-vert-ten.vercel.app/?canceled=true';
-  const FREE_LIMIT  = 3;
-
-  const stripeClient = Stripe(STRIPE_KEY);
+  const PAYMENT_LINK = 'YOUR_STRIPE_PAYMENT_LINK'; // ← Stripe ダッシュボードで作成した Payment Link URL を貼る
+  const FREE_LIMIT   = 3;
 
   /* ── Pro status (localStorage) ── */
   function isPro()  { return localStorage.getItem('memospace_pro') === 'true'; }
@@ -530,21 +524,10 @@
   }
 
   /* ── Stripe checkout ── */
-  async function upgradeToPro() {
+  function upgradeToPro() {
     const btns = document.querySelectorAll('.btn-upgrade');
     btns.forEach(b => { b.disabled = true; b.textContent = '処理中...'; });
-
-    const { error } = await stripeClient.redirectToCheckout({
-      lineItems: [{ price: PRICE_ID, quantity: 1 }],
-      mode: 'subscription',
-      successUrl: SUCCESS_URL,
-      cancelUrl:  CANCEL_URL,
-    });
-
-    if (error) {
-      showToast('error', 'エラーが発生しました: ' + error.message);
-      btns.forEach(b => { b.disabled = false; b.textContent = 'Proにアップグレード ¥500/月'; });
-    }
+    window.location.href = PAYMENT_LINK;
   }
 
   /* ── Stripe redirect handler ── */
